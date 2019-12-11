@@ -88,7 +88,7 @@ class RSS_RTM_2():
     '''Class to implement RSS Method 2 MSU/AMSU simulator'''
     
     
-    def __init__(self,channel=2,RTM_Data_Path = 'B:/Dropbox/IPython/RTM/data/'):
+    def __init__(self,channel=2,RTM_Data_Path = './data/'):
         self.AtmAbs = AtmAbs(channel = channel,RTM_Data_Path=RTM_Data_Path)
         self.CldAbs = CldAbs(channel = channel,RTM_Data_Path=RTM_Data_Path)
     
@@ -131,7 +131,7 @@ class RSS_RTM_2():
             
             # calculate absorptivity for each level
             aatm = self.AtmAbs.Absorptivity(zip(Q,P,T))
-            acld = self.CldAbs.Absorptivity(T,L)
+            acld = self.CldAbs.Absorptivity(zip(T,L))
             TotAbs = aatm + acld
             
             # do the rtm

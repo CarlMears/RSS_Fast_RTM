@@ -61,16 +61,38 @@ def find_abs_q(profiles,abs_table_q,T0,Delta_T,Delta_P,Delta_Q):
     return abs_interp_arr
 
 @jit(nopython=True)
-def calc_cld_Absorptivity(abs_interp,L):
-     abs_interp_np_m = abs_interp*L*0.1
-     return abs_interp_np_m
- 
+def find_abs_cld(profiles,abs_table_cld,T0,Delta_T):
+    
+    abs_interp_arr = np.zeros(len(profiles))
+    
+    for level_index,level_data in enumerate(profiles):
+        t = np.float32(level_data[0])
+        L = np.float32(level_data[1])
+
+        
+        #abs_table_q = absorptivity
+        sz = abs_table_cld.shape
+          
+        t_scaled = (t-T0)/Delta_T
+        t1 = np.int32(np.floor(t_scaled))
+        if t1 < 0:
+            t1 = 0
+        if t1 > (sz[0]-2):
+            t1 = sz[0]-2 
+        wt = t_scaled-t1
+        
+        abs_interp = np.float32((1.0-wt)*abs_table_cld[t1] + wt*abs_table_cld[t1+1])
+                                     
+        abs_interp_arr[level_index] = abs_interp
+        
+    abs_interp_arr = abs_interp_arr*L*0.1
+    return abs_interp_arr
+
 
 class AtmAbs():
     '''Class for calculating Oxygen and Water Vapor Absorption'''
     
-    def __init__(self,channel = 2,RTM_Data_Path = './data/'
-):
+    def __init__(self,channel = 2,RTM_Data_Path = './data/'):
         
         
         path = RTM_Data_Path +'abs_tables/'
@@ -87,11 +109,7 @@ class AtmAbs():
         
         absorptivity = np.array(nc_fid.variables['absorptivity'][:])
         self.absorptivity = absorptivity
-        
-        # now set up the interpolator
-        
-        #self.absorptivity_interpolating_function = RegularGridInterpolator((self.spec_hum, self.pressure, self.temperature), self.absorptivity)
-        
+                
         # set up variables ofr numba versions
         self.T0 = self.temperature[0]
         self.Delta_T = self.temperature[1] - self.temperature[0]
@@ -106,8 +124,7 @@ class AtmAbs():
         
 class CldAbs():
 
-    def __init__(self,channel = 2,RTM_Data_Path = './data/'
-):
+    def __init__(self,channel = 2,RTM_Data_Path = './data/'):
         path = RTM_Data_Path +'abs_tables/'
         nc_file = path + 'msu_'+str(channel)+'_cld_abs_table.nc'
         print 'Reading: '+nc_file
@@ -117,22 +134,24 @@ class CldAbs():
         absorptivity = np.array(nc_fid.variables['absorptivity'][:])
         self.absorptivity = absorptivity
 
-        # now set up the interpolator
-        
-        self.absorptivity_interpolating_function = interp1d(self.temperature, self.absorptivity)
+        # now set up info for the interpolator
 
+        self.T0 = self.temperature[0]
+        self.Delta_T = self.temperature[1] - self.temperature[0]
 
      
-    def Absorptivity(self,T,L): #T in Kelvin, L in Kg/m^3
-        
-        abs_interp = self.absorptivity_interpolating_function(T)
+    def Absorptivity(self,atm_profiles):
+        cld_abs_array = find_abs_cld(atm_profiles,self.absorptivity,self.T0,self.Delta_T)
+        return cld_abs_array
+        #abs_interp = self.absorptivity_interpolating_function(T)
+        abs_interp = 0.2
         
         # this returns the absorption coefficient for the (absurd) density of
         # 1 g/cm3
     
-        abs_interp_np_m = calc_cld_Absorptivity(abs_interp,L)    # calculate absorption in nepers/cm
+        #abs_interp_np_m = calc_cld_Absorptivity(abs_interp,L)    # calculate absorption in nepers/cm
     
-        return abs_interp_np_m
+        return cld_abs_array
 
 
         
