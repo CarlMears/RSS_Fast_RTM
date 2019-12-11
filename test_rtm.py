@@ -13,26 +13,6 @@ from numba import jit
 import cProfile, pstats, StringIO
 
 
-'''def read_std_atm_by_P(std_atm_file = '//sounder/c/idl_library/Standard_Atmos/std_atmos_p_5_1000.txt'):
-    P = []
-    Z = []
-    T = []
-    with open(std_atm_file,'r') as txtfile:
-        for row in txtfile:
-            a,b,c = row.split()
-            Z.append(float(a)) 
-            P.append(float(b))
-            T.append(float(c))
-    txtfile.close()
-    Z = np.array(Z)
-    P = np.array(P)
-    T = np.array(T)
-    return Z,P,T
-    
-Z,P,T = read_std_atm_by_P()
-num_layers = len(Z)
-'''
-
 # initialize the absorption and emissivity classes with the MSU channel
 
 def calc_TMT_map(eraint_surf,eraint_prof,eraint_invar):
@@ -165,13 +145,6 @@ if __name__ == '__main__':
     print s.getvalue()
     print deltat
     
-                        
-   # rss_plot.plot_global_map(tmt_map)
-    
-   # f = open('temp.pickle','w')
-   # pickle.dump(tmt_map, f)
-    
-  #  f.close()
     
     
        

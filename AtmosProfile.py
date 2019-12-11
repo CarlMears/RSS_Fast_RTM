@@ -3,7 +3,6 @@
 import numpy as np
 import collections
 import math
-#import atmos
 
 class AtmosProfile():
     '''Class that contains data about a single atmospheric profiles, along with surface data'''
