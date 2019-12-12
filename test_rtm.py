@@ -10,7 +10,10 @@ from RSS_RTM import RSS_RTM_2
 from SurfEmiss import SurfEmiss
 from eraint import read_eraint_atmos,read_eraint_surf,read_eraint_invar
 from numba import jit
-import cProfile, pstats, StringIO
+import cProfile, pstats, io
+from pstats import SortKey
+from global_map import global_map
+import matplotlib.pyplot as plt
 
 
 # initialize the absorption and emissivity classes with the MSU channel
@@ -18,24 +21,34 @@ import cProfile, pstats, StringIO
 def calc_TMT_map(eraint_surf,eraint_prof,eraint_invar):
     
     #initialize the surface emissivity class
-    SurfEmiss_2 = SurfEmiss(channel = 2,RTM_Data_Path = './data/')
+    SurfEmiss_2 = SurfEmiss(channel = 4,RTM_Data_Path = './data/')
     
     #initialize the RTM.  This initializes the absorption classes
-    RTM = RSS_RTM_2(channel = 2,RTM_Data_Path = './data/')
+    RTM = RSS_RTM_2(channel = 4,RTM_Data_Path = './data/')
     msu_theta = np.array([0.0,10.71,21.51,32.51,43.91,56.19])
     
     tmt_wts = np.array([1.0/9.0,2.0/9.0,2.0/9.0,2.0/9.0,2.0/9.0,0.0])
     
+    tb_array = np.zeros((6))
+    tb_array_combined_surf = np.zeros((6))
+            
+    tbup_array = np.zeros((6))        
+    tbdw_array = np.zeros((6))
+    
     tmt_map = np.zeros_like(eraint_invar['z_surf'])
+    z = eraint_prof['z']
+    t = eraint_prof['t']
+    q = eraint_prof['q']
+    p = eraint_prof['level']
     
     for i,lat in enumerate(eraint_surf['lat']):
-        print lat
+        print(lat)
         for j,lon in enumerate(eraint_surf['lon']):
     
-            Z = np.flipud(eraint_prof['z'][:,i,j])/9.80665 # convert to geopotential height
-            T = np.flipud(eraint_prof['t'][:,i,j])
-            Q = np.flipud(eraint_prof['q'][:,i,j])
-            P = np.flipud(eraint_prof['level'])
+            Z = np.flipud(z[:,i,j])/9.80665 # convert to geopotential height
+            T = np.flipud(t[:,i,j])
+            Q = np.flipud(q[:,i,j])
+            P = np.flipud(p)
             
             Z_surf = eraint_invar['z_surf'][i,j]/9.80665
             Land_frac = eraint_invar['lsm'][i,j]
@@ -45,7 +58,7 @@ def calc_TMT_map(eraint_surf,eraint_prof,eraint_invar):
                 Seaice_frac = Seaice_frac * Ocean_frac
                 Ocean_frac = Ocean_frac - Seaice_frac
             
-            # need to truncate profiles at the surface pressure
+            # truncate profiles at the surface pressure
             PS = 0.01 * eraint_surf['sp'][i,j]
     
             w = np.where(P < PS)
@@ -66,7 +79,6 @@ def calc_TMT_map(eraint_surf,eraint_prof,eraint_invar):
             test_prof.addprofiledata(P,name='P')
             test_prof.addprofiledata(T,name='T')
             test_prof.addprofiledata(Q,name='Q')
-    
     
             #extrapolate the standard atmosphere profile to the surface at z = 0.0
          
@@ -98,15 +110,12 @@ def calc_TMT_map(eraint_surf,eraint_prof,eraint_invar):
                 weights_to_do.append(Ocean_frac)        
     
             if abs(-1.0 + np.array(weights_to_do).sum()) > 0.0001:
-                print 'Weight Error'
+                print ('Weight Error')
                 for weight_index,weight in enumerate(weights_to_do):
                     weights_to_do[weight_index] = weight/np.array(weights_to_do).sum()
                     
-            tb_array = np.zeros((6,3))
-            tb_array_combined_surf = np.zeros((6))
             
-            tbup_array = np.zeros((6))        
-            tbdw_array = np.zeros((6))
+            tb_array_combined_surf = np.zeros((6))
             
             for surf_index,surf_string in enumerate(surfaces_to_do):
                 test_prof.definesurface(surf_string = surf_string)
@@ -115,13 +124,28 @@ def calc_TMT_map(eraint_surf,eraint_prof,eraint_invar):
                     test_prof.calc_emissivity(SurfEmiss_2,fov = fov)
                     
                     # perform the RTM
-                    tbdw,tbup,tb = RTM.CalcTb(test_prof,theta = msu_theta[fov])
-                    tb_array[fov,surf_index] = tb
+                    tbdw,tbup,tb = RTM.CalcTb(test_prof,
+                                              theta = msu_theta[fov])
+                    tb_array[fov] = tb
                     tbup_array[fov] = tbup
                     tbdw_array[fov] = tbdw
-                
-                tb_array_combined_surf = tb_array_combined_surf + weights_to_do[surf_index]*tb_array[:,surf_index]
                     
+                tb_array_combined_surf = tb_array_combined_surf + weights_to_do[surf_index]*tb_array
+
+            
+            '''for fov in range(0,6):
+                #test_prof.definesurface(surf_string = 'Ocean')
+                #calculate the surface emissivity for this fov
+                test_prof.calc_emissivity_surface_type_weighted(SurfEmiss_2,fov=0,
+                     surface_wts = np.array([Ocean_frac,Seaice_frac,Land_frac],dtype=np.float32))  
+        
+                # perform the RTM
+                tbdw,tbup,tb = RTM.CalcTb(test_prof,theta = msu_theta[fov])
+                tb_array[fov] = tb
+                tbup_array[fov] = tbup
+                tbdw_array[fov] = tbdw'''
+                
+ 
             tmt  = np.sum(tb_array_combined_surf*tmt_wts)        
             tmt_map[i,j] = tmt  
     return tmt_map
@@ -133,24 +157,9 @@ if __name__ == '__main__':
     
     from time import time
     t = time() 
-    pr = cProfile.Profile()
-    pr.enable()
     tmt_map = calc_TMT_map(eraint_surf,eraint_prof,eraint_invar)
-    pr.disable()
     deltat = time() - t
-    s = StringIO.StringIO()
-    sortby = 'tottime'
-    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    ps.print_stats(0.1)
-    print s.getvalue()
-    print deltat
+    print (deltat)
     
-    
-    
-       
-    
-                    
-    
-    
-    
-    
+    global_map(np.flipud(tmt_map), vmin=200.0, vmax=270.0, plt_colorbar=True,title='')
+    plt.show()
