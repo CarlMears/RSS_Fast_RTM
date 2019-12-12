@@ -41,7 +41,7 @@ class SurfEmiss():
         
         path = RTM_Data_Path +'emiss_tables/'
         ocean_nc_file = path + 'msu_'+str(channel)+'_emiss_table_W.nc'
-        print 'Reading: '+ocean_nc_file
+        print('Reading: '+ocean_nc_file)
         nc_ocean_emiss_fid = Dataset(ocean_nc_file, 'r') 
         
         temperature               = np.array(nc_ocean_emiss_fid.variables['temperature'][:])  # extract/copy the data
@@ -64,7 +64,7 @@ class SurfEmiss():
         
         path = RTM_Data_Path +'emiss_tables/'
         sea_ice_nc_file             = path + 'msu_'+str(channel)+'_emiss_table_sea_ice.nc'
-        print 'Reading: '+sea_ice_nc_file
+        print('Reading: '+sea_ice_nc_file)
         nc_sea_ice_emiss_fid      = Dataset(sea_ice_nc_file, 'r') 
         
         temperature               = np.array(nc_sea_ice_emiss_fid.variables['temperature'][:])  # extract/copy the data

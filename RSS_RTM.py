@@ -7,7 +7,7 @@ from AtmosProfile import AtmosProfile
 import numpy as np
 from AtmAbs import AtmAbs
 from AtmAbs import CldAbs
-import math
+#import math
 from numba import jit
 
 
@@ -47,13 +47,13 @@ def atm_tran_3(nlev,tht,t,p,tabs):
     tavg     = np.zeros(nlev-1)  # these are layer variables
     ems      = np.zeros(nlev-1)  # these are layer variables
  
-    sectht   = 1.0/math.cos(math.radians(tht))
+    sectht   = 1.0/np.cos(np.radians(tht))
 
     for i in range(1,nlev):
 
         opacty[i-1]= sectht*0.5*(tabs[i-1]+tabs[i])*(p[i]-p[i-1])
         tavg[i-1]  = 0.5*(t[i-1]+t[i])
-        ems[i-1]   = 1.-math.exp(opacty[i-1])  # ems(0) is the total emissivity of first layer									                  # between temperature levels 0 and 1, etc.
+        ems[i-1]   = 1.-np.exp(opacty[i-1])  # ems(0) is the total emissivity of first layer									                  # between temperature levels 0 and 1, etc.
         
     
     sumop=0.0
@@ -74,7 +74,7 @@ def atm_tran_3(nlev,tht,t,p,tabs):
         
 
 
-    tran_up[0] = math.exp(sumop)
+    tran_up[0] = np.exp(sumop)
     tbavg=(1.-tran_up[0])*t[1]
     tbdw=tbavg+sumdw
     tbup=tbavg+sumup
@@ -101,11 +101,11 @@ class RSS_RTM_2():
         data_OK = True
         profile_must_contain = ['T','P','Q','L']
         for key in profile_must_contain:
-            if not profile.data.has_key(key):
+            if not (key in profile.data):
                 data_OK = False
         surface_must_contain = ['TS','PS','QS','LS','EM']
         for key in surface_must_contain:
-            if not profile.data.has_key(key):
+            if not (key in profile.data):
                 data_OK = False
                 
         if data_OK:
@@ -129,9 +129,9 @@ class RSS_RTM_2():
             L[0] = profile.data['LS']
             L[1:nlev+1] = profile.data['L']
             
-            # calculate absorptivity for each level
-            aatm = self.AtmAbs.Absorptivity(zip(Q,P,T))
-            acld = self.CldAbs.Absorptivity(zip(T,L))
+            # calculate absorptivity for each level            
+            aatm = self.AtmAbs.Absorptivity(np.stack((Q,P,T)))
+            acld = self.CldAbs.Absorptivity(np.stack((T,L)))
             TotAbs = aatm + acld
             
             # do the rtm

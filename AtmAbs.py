@@ -6,10 +6,12 @@ from numba import jit
 import math
 
 @jit(nopython=True)
-def find_abs_q(profiles,abs_table_q,T0,Delta_T,Delta_P,Delta_Q):
-    abs_interp_arr = np.zeros(len(profiles))
+def find_abs_q(profiles,num_levels,abs_table_q,T0,Delta_T,Delta_P,Delta_Q):
     
-    for level_index,level_data in enumerate(profiles):
+    abs_interp_arr = np.zeros((num_levels))
+    
+    for level_index in np.arange(0,num_levels):
+        level_data=profiles[:,level_index]
         q = np.float32(level_data[0])
         p = np.float32(level_data[1])
         t = np.float32(level_data[2])
@@ -61,11 +63,13 @@ def find_abs_q(profiles,abs_table_q,T0,Delta_T,Delta_P,Delta_Q):
     return abs_interp_arr
 
 @jit(nopython=True)
-def find_abs_cld(profiles,abs_table_cld,T0,Delta_T):
+def find_abs_cld(profiles,num_levels,abs_table_cld,T0,Delta_T):
     
-    abs_interp_arr = np.zeros(len(profiles))
+  
+    abs_interp_arr = np.zeros(num_levels)
     
-    for level_index,level_data in enumerate(profiles):
+    for level_index in np.arange(0,num_levels):
+        level_data = profiles[:,level_index]
         t = np.float32(level_data[0])
         L = np.float32(level_data[1])
 
@@ -97,7 +101,7 @@ class AtmAbs():
         
         path = RTM_Data_Path +'abs_tables/'
         nc_file = path + 'msu_'+str(channel)+'_abs_table_q_per_Pa.nc'
-        print 'Reading: '+nc_file
+        print('Reading: '+nc_file)
         nc_fid = Dataset(nc_file, 'r') 
         
         temperature       = np.array(nc_fid.variables['temperature'][:])  # extract/copy the data
@@ -118,7 +122,9 @@ class AtmAbs():
     
 
     def Absorptivity(self,atm_profiles):
-        oxyvap_abs_arr = find_abs_q(atm_profiles,self.absorptivity,self.T0,self.Delta_T,self.Delta_P,self.Delta_Q)
+        sz = atm_profiles.shape 
+        num_levels = atm_profiles.shape[1]
+        oxyvap_abs_arr = find_abs_q(atm_profiles,num_levels,self.absorptivity,self.T0,self.Delta_T,self.Delta_P,self.Delta_Q)
         return oxyvap_abs_arr
     
         
@@ -127,7 +133,7 @@ class CldAbs():
     def __init__(self,channel = 2,RTM_Data_Path = './data/'):
         path = RTM_Data_Path +'abs_tables/'
         nc_file = path + 'msu_'+str(channel)+'_cld_abs_table.nc'
-        print 'Reading: '+nc_file
+        print ('Reading: '+nc_file)
         nc_fid = Dataset(nc_file, 'r') 
         temperature       = np.array(nc_fid.variables['temperature'][:])  # extract/copy the data
         self.temperature  = temperature
@@ -141,17 +147,10 @@ class CldAbs():
 
      
     def Absorptivity(self,atm_profiles):
-        cld_abs_array = find_abs_cld(atm_profiles,self.absorptivity,self.T0,self.Delta_T)
+        num_levels = atm_profiles.shape[1]
+        cld_abs_array = find_abs_cld(atm_profiles,num_levels,self.absorptivity,self.T0,self.Delta_T)
         return cld_abs_array
-        #abs_interp = self.absorptivity_interpolating_function(T)
-        abs_interp = 0.2
-        
-        # this returns the absorption coefficient for the (absurd) density of
-        # 1 g/cm3
-    
-        #abs_interp_np_m = calc_cld_Absorptivity(abs_interp,L)    # calculate absorption in nepers/cm
-    
-        return cld_abs_array
+          
 
 
         
