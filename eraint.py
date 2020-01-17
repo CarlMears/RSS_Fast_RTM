@@ -11,7 +11,7 @@ def read_eraint_atmos(year,month,time_step,eraint_path = '//ops1p/n/data/model/E
     
     eraint_file = eraint_path + 'atmos_profile/' + str(year) + '/'+ 'ERA_Int_Daily_Profiles_'+str(year) + '_' + str(month).zfill(2) + '.nc'
     
-    print('Reading: '+eraint_file)
+    print 'Reading: '+eraint_file
     nc_fid = Dataset(eraint_file, 'r') 
     temperature       = np.array(nc_fid.variables['t'][time_step,:,:,:]).clip(min=0.0)  # extract/copy the data
     spec_hum          = np.array(nc_fid.variables['q'][time_step,:,:,:]).clip(min=0.0)
@@ -30,7 +30,7 @@ def read_eraint_surf(year,month,time_step,eraint_path = '//ops1p/n/data/model/ER
     
     eraint_file = eraint_path + 'surface/' + str(year) + '/'+ 'ERA_Int_surface_data_'+ str(month).zfill(2) +  '_'+str(year)+'_480x241.nc'
       
-    print ('Reading: '+eraint_file)
+    print 'Reading: '+eraint_file
     nc_fid = Dataset(eraint_file, 'r') 
     
     ci                 = np.array(nc_fid.variables['ci'][time_step,:,:])         #sea ice cover
@@ -55,7 +55,7 @@ def read_eraint_invar(eraint_path = '//ops1p/n/data/model/ERA-Int/daily/'):
     
     eraint_file = eraint_path +'surface/' + 'ERA_Int_surface_invariant_480x241.nc'
       
-    print('Reading: '+eraint_file)
+    print 'Reading: '+eraint_file
     nc_fid = Dataset(eraint_file, 'r') 
     
     lsm = np.array(nc_fid.variables['lsm'][0,:,:])         #land sea mask
