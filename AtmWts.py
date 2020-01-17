@@ -8,6 +8,8 @@ import timeit
 import cProfile, pstats, io
 from pstats import SortKey
 
+#comment out the line below to see how much slower regular python is
+
 @jit(nopython = True)
 def AtmLevelWts_Numba(  weighting_function = None,
                         surface_weight = None,
@@ -142,9 +144,6 @@ def AtmLevelWts_Numba(  weighting_function = None,
             space_wts[ilat,ilon]   = space_wt
 
             tbs[ilat,ilon] = ts[ilat,ilon]*surf_wt + np.sum(temp_profiles[:,ilat,ilon]*wt_ref) + space_wt*2.730
-            continue
-
-
 
     return tbs,level_wts,surface_wts,space_wts
 
@@ -227,6 +226,7 @@ class AtmWt():
 if __name__ == '__main__':
 
     from era5_monthly import read_era5_monthly_means_3D, read_era5_monthly_means_2D
+    import xarray as xr
     year = 2000
     month = 1
     channel = 'TLT'
@@ -262,8 +262,13 @@ if __name__ == '__main__':
     land_frac = read_era5_monthly_means_2D(year=year, month=month, variable = 'land_sea_mask',
                                      era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['land_frac'][0, :, :]
 
-    land_frac[land_frac <= 0.01] = 0.0
-    land_frac[land_frac >= 0.99] = 1.0
+    sea_ice_frac = read_era5_monthly_means_2D(year=year, month=month, variable = 'sea_ice_cover',
+                                     era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['SeaIce'][0, :, :]
+
+    sea_ice_frac[sea_ice_frac < 0.0] = 0.0
+
+    not_ocean = land_frac + sea_ice_frac
+    not_ocean[not_ocean >= 0.99] = 1.0
 
     #initialize AtmWt classes.
     AtmWt_TLT_Ocean = AtmWt(channel = channel,surface = 'Ocean')
@@ -274,8 +279,8 @@ if __name__ == '__main__':
     pr.enable()
 
     # calculate the Tbs and  weights.
-    tbs_ocean,level_wts_ocean,surface_wts_ocean,space_wts_ocean = AtmWt_TLT_Ocean.AtmLevelWts(temp_profiles=t,ts = ts, ps=ps, levels=levels,land_frac=land_frac)
-    tbs_land,level_wts_land, surface_wts_land, space_wts_land   = AtmWt_TLT_Land.AtmLevelWts(temp_profiles=t,ts = ts, ps=ps, levels=levels,land_frac=land_frac)
+    tbs_ocean,level_wts_ocean,surface_wts_ocean,space_wts_ocean = AtmWt_TLT_Ocean.AtmLevelWts(temp_profiles=t,ts = ts, ps=ps, levels=levels,land_frac=not_ocean)
+    tbs_land,level_wts_land, surface_wts_land, space_wts_land   = AtmWt_TLT_Land.AtmLevelWts(temp_profiles=t,ts = ts, ps=ps, levels=levels,land_frac=not_ocean)
 
     # end profiled section
     pr.disable()
@@ -288,8 +293,8 @@ if __name__ == '__main__':
     print(s.getvalue())
 
     # combine the land and ocean results together.
-    surface_wts_combined = land_frac * surface_wts_land + (1.0 - land_frac)*surface_wts_ocean
-    tbs_combined = land_frac * tbs_land + (1.0 - land_frac)*tbs_ocean
+    surface_wts_combined = not_ocean * surface_wts_land + (1.0 - not_ocean)*surface_wts_ocean
+    tbs_combined = not_ocean * tbs_land + (1.0 - not_ocean)*tbs_ocean
 
     # adjust to match RSS plotting routine
     surface_wts_land   = np.roll(np.flipud(surface_wts_land),shift = 180,axis=(1))
@@ -300,8 +305,24 @@ if __name__ == '__main__':
     # make plots for sanity check.
     global_map(surface_wts_combined,vmin = 0.0,vmax = 0.3,plt_colorbar = True,title = channel+' surface weights')
     global_map(tbs_combined,vmin = 220.0,vmax = 280.0,plt_colorbar = True,title = channel+' Brightness Temperature(K)')
+    plt.show()
+
+    # read in data from IDL calculation
+    compare_file_name = f"./test/ERA5_test_case_msu_channel_{channel}_{year:04}_{month:02}.nc"
+    d = xr.open_dataset(compare_file_name)
+    tbs_from_idl = d['Tb'].values
+    tbs_from_idl = np.roll(tbs_from_idl, shift=180, axis=1)
+    global_map(tbs_from_idl,vmin = 220.0,vmax = 280.0,plt_colorbar = True,title = channel+' Brightness Temperature(K), from IDL')
+
+    global_map(tbs_combined - tbs_from_idl,vmin  =-0.2,vmax = 0.2,plt_colorbar = True,title = channel+' Brightness Temperature(K), from IDL')
+
 
     plt.show()
+    print
+
+
+
+
     print
 
 

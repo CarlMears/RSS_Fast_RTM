@@ -1,0 +1,18 @@
+the v4 msu files were made using the routine
+
+B:\job_weighting_functions\process_msu_wt_funcs_by_surface_level.1100.v4.pro
+
+the routine writes them to:
+
+B:\job_weighting_functions\netcdf_files
+
+then they are copied by hand to 
+
+B:\idl_library\MSU_AMSU_simulation\method_1\wts
+
+The V4 versions use the V4 FOV sets (central 9 istead of central 5)
+for MSU TMT, TTS, and TLS.
+
+
+
+
