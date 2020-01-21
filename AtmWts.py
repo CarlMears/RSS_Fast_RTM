@@ -58,12 +58,18 @@ def AtmLevelWts_Numba(  weighting_function = None,
     else:
         LF_test = 1.0
 
+    #for ilat in np.arange(49, num_lats):
     for ilat in np.arange(0, num_lats):
         print(ilat)
         for ilon in range(0, num_lons):
-            if (abs(land_frac[ilat,ilon] - LF_test) < 0.001):
-                continue
+        #for ilon in range(0, num_lons):
             ps_flt = ps[ilat, ilon]
+            ts_flt = ts[ilat, ilon]
+            #if ((np.abs(ps_flt - 1020.97698) < 0.0001) and (np.abs(ts_flt - 286.98798) < 0.001)):
+            #    print()
+            #else:
+            #    continue
+
             ps_int = int(np.round(ps_flt))
             if ps_int > MAX_SURF_PRESSURE:
                 raise ValueError('Surface pressure > 1100 hPa')
@@ -76,7 +82,7 @@ def AtmLevelWts_Numba(  weighting_function = None,
             surf_wt  = surface_weight[ps_index]
             space_wt = space_weight[ps_index]
 
-            above_surf = np.where(levels < ps_flt)
+            above_surf = np.where(levels < ps_int)
             lowest_level = above_surf[0][-1]
 
             p_lower = ps_int
@@ -96,7 +102,7 @@ def AtmLevelWts_Numba(  weighting_function = None,
             surf_wt = surf_wt + T_lower_wt
             wt_ref = np.zeros((num_levels))
             wt_ref[lowest_level] += T_upper_wt
-
+            #print()
             # Now step through the rest of the levels
             for i in np.arange(lowest_level, 0, -1):
                 p_lower = levels[i]
@@ -233,15 +239,15 @@ if __name__ == '__main__':
     use_t2m = True
     d = read_era5_monthly_means_3D(year=year, month=month, variable='temperature',
                                    era5_path='C:/Users/mears/Dropbox/era5/monthly/3D/')
-    t = d['T'][0, :, :, :]        #Temperature in Kelvin
-    levels = d['levels'][:]       #Pressure Levels in hPa
+    t = (d['T'][0, :, :, :]).astype(np.float32)        #Temperature in Kelvin
+    levels = (d['levels'][:]).astype(np.float32)       #Pressure Levels in hPa
 
 
     ps = read_era5_monthly_means_2D(year=year, month=month, variable='surface_pressure',
                                     era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['PS'][0, :, :]
     #ps in ERA5 is in Pa
     #convert to hPa
-    ps = ps/100.0
+    ps = (ps/100.0).astype(np.float32)
 
     if use_t2m:   #both types of ts are in Kelvin
         ts = read_era5_monthly_means_2D(year=year, month=month, variable='2m_temperature',
@@ -259,16 +265,18 @@ if __name__ == '__main__':
         #                energy balance
         #                for dry soil, Longwave IR and MW penetration depth are very different.
 
+    ts = ts.astype(np.float32)
+
     land_frac = read_era5_monthly_means_2D(year=year, month=month, variable = 'land_sea_mask',
                                      era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['land_frac'][0, :, :]
 
     sea_ice_frac = read_era5_monthly_means_2D(year=year, month=month, variable = 'sea_ice_cover',
                                      era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['SeaIce'][0, :, :]
 
-    sea_ice_frac[sea_ice_frac < 0.0] = 0.0
-
+    sea_ice_frac[np.isnan(sea_ice_frac)] = 0.0
+    sea_ice_frac[sea_ice_frac < -1.0] = 0.0
     not_ocean = land_frac + sea_ice_frac
-    not_ocean[not_ocean >= 0.99] = 1.0
+    not_ocean[not_ocean > 1.0] = 1.0
 
     #initialize AtmWt classes.
     AtmWt_TLT_Ocean = AtmWt(channel = channel,surface = 'Ocean')
@@ -279,7 +287,9 @@ if __name__ == '__main__':
     pr.enable()
 
     # calculate the Tbs and  weights.
+    print('Performing Ocean Calculation')
     tbs_ocean,level_wts_ocean,surface_wts_ocean,space_wts_ocean = AtmWt_TLT_Ocean.AtmLevelWts(temp_profiles=t,ts = ts, ps=ps, levels=levels,land_frac=not_ocean)
+    print('Performing Land Calculation')
     tbs_land,level_wts_land, surface_wts_land, space_wts_land   = AtmWt_TLT_Land.AtmLevelWts(temp_profiles=t,ts = ts, ps=ps, levels=levels,land_frac=not_ocean)
 
     # end profiled section
@@ -288,8 +298,8 @@ if __name__ == '__main__':
     #report the profiles info.
     s = io.StringIO()
     sortby = SortKey.TIME
-    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    ps.print_stats(0.01)
+    ps1 = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps1.print_stats(0.01)
     print(s.getvalue())
 
     # combine the land and ocean results together.
@@ -297,26 +307,46 @@ if __name__ == '__main__':
     tbs_combined = not_ocean * tbs_land + (1.0 - not_ocean)*tbs_ocean
 
     # adjust to match RSS plotting routine
+    not_ocean_to_plot = np.roll(np.flipud(not_ocean),shift = 180,axis=(1))
     surface_wts_land   = np.roll(np.flipud(surface_wts_land),shift = 180,axis=(1))
     surface_wts_ocean   = np.roll(np.flipud(surface_wts_ocean),shift = 180,axis=(1))
     surface_wts_combined = np.roll(np.flipud(surface_wts_combined),shift=180,axis=1)
+
+    ps = np.roll(np.flipud(ps),shift=180,axis=1)
+    ts = np.roll(np.flipud(ts),shift=180,axis=1)
+
+    tbs_land = np.roll(np.flipud(tbs_land),shift=180,axis=1)
+    tbs_ocean = np.roll(np.flipud(tbs_ocean),shift=180,axis=1)
     tbs_combined = np.roll(np.flipud(tbs_combined),shift=180,axis=1)
 
     # make plots for sanity check.
     global_map(surface_wts_combined,vmin = 0.0,vmax = 0.3,plt_colorbar = True,title = channel+' surface weights')
     global_map(tbs_combined,vmin = 220.0,vmax = 280.0,plt_colorbar = True,title = channel+' Brightness Temperature(K)')
+    global_map(not_ocean_to_plot,vmin = 0.0,vmax = 1.0,plt_colorbar = True,title = channel+' land and  ice fraction')
     plt.show()
 
     # read in data from IDL calculation
     compare_file_name = f"./test/ERA5_test_case_msu_channel_{channel}_{year:04}_{month:02}.nc"
     d = xr.open_dataset(compare_file_name)
-    tbs_from_idl = d['Tb'].values
-    tbs_from_idl = np.roll(tbs_from_idl, shift=180, axis=1)
+    #roll it in longitude by 180 degrees to match the python  maps
+    tbs_from_idl = np.roll(d['Tb'].values, shift=180, axis=1)
+    tbs_land_from_idl = np.roll(d['Tb_land'].values, shift=180, axis=1)
+    tbs_ocean_from_idl = np.roll(d['Tb_ocean'].values, shift=180, axis=1)
+    not_ocean_idl = np.roll(d['land_fraction'].values, shift=180, axis=1)
+
+    global_map(tbs_combined,vmin = 220.0,vmax = 280.0,plt_colorbar = True,title = channel+' Brightness Temperature(K), from Python')
     global_map(tbs_from_idl,vmin = 220.0,vmax = 280.0,plt_colorbar = True,title = channel+' Brightness Temperature(K), from IDL')
+    global_map(tbs_combined - tbs_from_idl,vmin  =-0.02,vmax = 0.02,plt_colorbar = True,title = channel+' Brightness Temperature(K), from IDL')
 
-    global_map(tbs_combined - tbs_from_idl,vmin  =-0.2,vmax = 0.2,plt_colorbar = True,title = channel+' Brightness Temperature(K), from IDL')
+    land_diff = tbs_land - tbs_land_from_idl
+    ocean_diff = tbs_ocean - tbs_ocean_from_idl
+    comb_diff = tbs_combined - tbs_from_idl
 
+    print(np.min(land_diff),np.max(land_diff),np.mean(land_diff),np.std(land_diff))
+    print(np.min(ocean_diff),np.max(ocean_diff),np.mean(ocean_diff),np.std(ocean_diff))
+    print(np.min(comb_diff),np.max(comb_diff),np.mean(comb_diff),np.std(comb_diff))
 
+    print()
     plt.show()
     print
 
