@@ -227,27 +227,27 @@ if __name__ == '__main__':
     use_t2m = True
     perform_profile = True
     d = read_era5_monthly_means_3D(year=year, month=month, variable='temperature',
-                                   era5_path='C:/Users/mears/Dropbox/era5/monthly/3D/')
+                                   era5_path='./era5/monthly/3D/')
     t = (d['T'][0, :, :, :]).astype(np.float32)        #Temperature in Kelvin
     levels = (d['levels'][:]).astype(np.float32)       #Pressure Levels in hPa
 
 
     ps = read_era5_monthly_means_2D(year=year, month=month, variable='surface_pressure',
-                                    era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['PS'][0, :, :]
+                                    era5_path='./era5/monthly/2D/')['PS'][0, :, :]
     #ps in ERA5 is in Pa
     #convert to hPa
     ps = (ps/100.0).astype(np.float32)
 
     if use_t2m:   #both types of ts are in Kelvin
         ts = read_era5_monthly_means_2D(year=year, month=month, variable='2m_temperature',
-                                    era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['T2m'][0, :, :]
+                                    era5_path='./era5/monthly/2D/')['T2m'][0, :, :]
         #this ts is the 2m air temperature.
         #  advantages of use:  more closelt tied to observations
         #  disadvantage:  Not really what the satellite sees.  The difference between T2m and Tskin can be large
         #                 under daytime and night time clear sky conditions
     else:
         ts  = read_era5_monthly_means_2D(year=year, month=month, variable='skin_temperature',
-                                    era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['TSkin'][0, :, :]
+                                    era5_path='./era5/monthly/2D/')['TSkin'][0, :, :]
         # this ts is the skin temperature as relevant to long-wave IR
         # advantage of use:  closer to microwave skin temperature, at least for moist soils
         # disadvantage:  appears to be a sort of free parameter in the model which is adjusted to satisfy
@@ -257,10 +257,10 @@ if __name__ == '__main__':
     ts = ts.astype(np.float32)
 
     land_frac = read_era5_monthly_means_2D(year=year, month=month, variable = 'land_sea_mask',
-                                     era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['land_frac'][0, :, :]
+                                     era5_path='./era5/monthly/2D/')['land_frac'][0, :, :]
 
     sea_ice_frac = read_era5_monthly_means_2D(year=year, month=month, variable = 'sea_ice_cover',
-                                     era5_path='C:/Users/mears/Dropbox/era5/monthly/2D/')['SeaIce'][0, :, :]
+                                     era5_path='./era5/monthly/2D/')['SeaIce'][0, :, :]
 
     sea_ice_frac[np.isnan(sea_ice_frac)] = 0.0
     sea_ice_frac[sea_ice_frac < -1.0] = 0.0
