@@ -145,7 +145,7 @@ class AtmWt():
     def __init__(self, channel='TLT',surface = 'ocean',RTM_Data_Path='./data/',verbose=True):
 
         path = RTM_Data_Path + 'wt_tables/'
-        nc_file = path + 'std_atmosphere_wt_function_msu_chan_'+channel+'_'+surface+'_by_surface_pressure.1100.v4.nc'
+        nc_file = path + 'std_atmosphere_wt_function_msu_chan_'+channel+'_'+surface+'_by_surface_pressure.1100.V4.nc'
         if verbose:
             print('Reading: ' + nc_file)
         nc_fid = Dataset(nc_file, 'r')
@@ -268,8 +268,8 @@ if __name__ == '__main__':
     not_ocean[not_ocean > 1.0] = 1.0
 
     #initialize AtmWt classes.
-    AtmWt_MSU_Ocean = AtmWt(channel = channel,surface = 'Ocean')
-    AtmWt_MSU_Land  = AtmWt(channel = channel,surface = 'Land')
+    AtmWt_MSU_Ocean = AtmWt(channel = channel,surface = 'ocean')
+    AtmWt_MSU_Land  = AtmWt(channel = channel,surface = 'land')
 
     if perform_profile:
         #start the profiler
